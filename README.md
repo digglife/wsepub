@@ -1,5 +1,5 @@
-## ctext-epub
+## wsepub
 
-A python module for generating epub file from [ctext.org](http://ctext.org).
+A python script for generating epub file for Chinese classic from [zh.wikisource.org](http://zh.wikisource.org).
 
 
