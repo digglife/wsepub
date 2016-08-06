@@ -1,9 +1,9 @@
 ## wsepub
 
-A python script for generating epub file for Chinese classic text from
+A python script for generating epub file for Chinese classic texts from
  [zh.wikisource.org][1]. 
  
-I wrote it for [《宋史纪事本末》][2], but it should works for any Chinese classic books published on wikisource.
+I wrote it for [《宋史纪事本末》][2], but it should work for any Chinese classic texts published on wikisource.
 
 Refer to [samples](./samples) folder for the actual epub files.
 
@@ -11,7 +11,7 @@ Refer to [samples](./samples) folder for the actual epub files.
 
 1. Generate a well-formated epub file automatically from the index page of a book.
 2. Generate table of content and navigation page.
-3. Replace English quote mark("") to Chinese quote mark(「」).
+3. Replace English quote mark("") with Chinese quote mark(「」).
 
 
 ### Screenshots
