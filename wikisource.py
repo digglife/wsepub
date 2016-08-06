@@ -5,8 +5,9 @@ import uuid
 import requests
 import logging
 import time
+import re
 from ebooklib import epub
-from bs4 import BeautifulSoup as bs
+from bs4 import BeautifulSoup, Tag, NavigableString
 
 home = 'https://zh.wikisource.org'
 headers = {
@@ -26,7 +27,7 @@ def get_book_title(doc):
 
 def get_author(doc):
     author_a = doc.find(lambda tag: tag.name == 'a'
-                        and tag.has_attr('titl')
+                        and tag.has_attr('title')
                         and 'Author' in tag['title']
                         )
 
@@ -36,36 +37,52 @@ def get_author(doc):
         author = 'Anonymity'
     return author
 
+def remove_junk_elements(doc):
+    editor_span = doc.find_all('span', class_='mw-editsection')
+    if editor_span:
+        for e in editor_span:
+            e.extract()
+    return doc
 
 def get_charpters(doc):
     div = doc.find(id='mw-content-text')
     links = div.find_all(lambda tag: tag.name == 'li'
                          and not tag.has_attr('class')
                          )
-    return [[home + l['href'], l.text] for l in links]
+    return [[home + l.a['href'], l.text] for l in links]
 
 
 def generate_chapter_contents(doc):
-    title_element = doc.select('td b')
-    if title_element:
-        title = title_element[1].text
+    div = doc.find(id='mw-content-text')
+    #The metadata of a chapter is in the center td of the table, of which the 
+    # css style is not certain.
+    metadata = doc.find('td', width='50%') or doc.find('td', style='width:50%;')
+    if metadata:
+        title_element = [m for m in metadata.contents if m != '\n'][2]
+        if isinstance(title_element, Tag):
+            title = title_element.text.strip()
+        else:
+            title = title_element.strip()
     else:
         title = doc.h1.text
-    paragraphs = [p.text for p in doc.select('div p')]
-    return [title, paragraphs]
+    #paragraphs = [p.text for p in doc.select('div p')]
+    #Only get headers and paragraphs.
+    div = remove_junk_elements(div)
+    main_text = div.find_all(re.compile('^p|h\d$'))
+    contents = ''.join([str(c) for c in main_text])
+    return [title, contents]
 
 
 def make_epub_html(filename, title, contents):
     html = epub.EpubHtml(title=title, file_name=filename, lang='zh')
     html.content = '<h2>{}</h2>'.format(title)
-    for c in contents:
-        html.content += '<p>{}</p>'.format(trans_quote(c))
+    html.content += trans_quote(contents)
 
     return html
 
 
 def main(book_link):
-    index = bs(requests.get(book_link, headers=headers).text, 'html.parser')
+    index = BeautifulSoup(requests.get(book_link, headers=headers).text, 'html.parser')
     title = get_book_title(index)
     author = get_author(index)
     chapters = get_charpters(index)
@@ -84,7 +101,7 @@ def main(book_link):
     for i, c in enumerate(chapters):
         time.sleep(5)
         link, text = c
-        chapter_html = bs(requests.get(link).text, 'html.parser')
+        chapter_html = BeautifulSoup(requests.get(link).text, 'html.parser')
         chapter_title, chapter_contents = generate_chapter_contents(
             chapter_html)
         chapter_epub = make_epub_html(
