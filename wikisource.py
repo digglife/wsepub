@@ -21,6 +21,28 @@ def trans_quote(text):
     return text.replace('“', '「').replace('”', '」')
 
 
+def get_cover_image(title):
+    params = {
+        'act': 'input',
+        'category_path': '01.00.00.00.00.00',
+        'type': '01.00.00.00.00.00',
+        'key': title
+    }
+    search_doc = bs(requests.get('http://search.dangdang.com/',
+                                 params,
+                                 headers=headers).text, 'html.parser'
+                    )
+
+    result_num = search_doc.find('span', class_='total').em.text
+    if result_num == '0':
+        return None
+    book_url = search_doc.find('a', attrs={'name': 'itemlist-title'})['href']
+    book_details = bs(requests.get(book_url).text, 'html.parser')
+    image_url = book_details.find('img', id='largePic')['src']
+    image_content = requests.get(image_url).content
+    return image_content
+
+
 def get_book_title(doc):
     return doc.h1.text
 
@@ -37,12 +59,14 @@ def get_author(doc):
         author = 'Anonymity'
     return author
 
+
 def remove_junk_elements(doc):
     editor_span = doc.find_all('span', class_='mw-editsection')
     if editor_span:
         for e in editor_span:
             e.extract()
     return doc
+
 
 def get_charpters(doc):
     div = doc.find(id='mw-content-text')
@@ -54,9 +78,10 @@ def get_charpters(doc):
 
 def generate_chapter_contents(doc):
     div = doc.find(id='mw-content-text')
-    #The metadata of a chapter is in the center td of the table, of which the 
+    # The metadata of a chapter is in the center td of the table, of which the
     # css style is not certain.
-    metadata = doc.find('td', width='50%') or doc.find('td', style='width:50%;')
+    metadata = doc.find('td', width='50%') or doc.find(
+        'td', style='width:50%;')
     if metadata:
         title_element = [m for m in metadata.contents if m != '\n'][2]
         if isinstance(title_element, Tag):
@@ -66,7 +91,7 @@ def generate_chapter_contents(doc):
     else:
         title = doc.h1.text
     #paragraphs = [p.text for p in doc.select('div p')]
-    #Only get headers and paragraphs.
+    # Only get headers and paragraphs.
     div = remove_junk_elements(div)
     main_text = div.find_all(re.compile('^p|h\d$'))
     contents = ''.join([str(c) for c in main_text])
@@ -82,10 +107,12 @@ def make_epub_html(filename, title, contents):
 
 
 def main(book_link):
-    index = BeautifulSoup(requests.get(book_link, headers=headers).text, 'html.parser')
+    index = BeautifulSoup(
+        requests.get(book_link, headers=headers).text, 'html.parser')
     title = get_book_title(index)
     author = get_author(index)
     chapters = get_charpters(index)
+    cover_image = get_cover_image(title)
 
     book = epub.EpubBook()
     book.set_identifier(uuid.uuid4().urn)
@@ -96,6 +123,8 @@ def main(book_link):
     book.add_metadata('DC', 'publisher', home, {'id': 'publisher'})
     book.add_metadata('DC', 'source', book_link, {'id': 'url'})
     book.set_language('zh')
+    if cover_image:
+        book.set_cover('cover.jpg', cover_image, create_page=False)
 
     items = []
     for i, c in enumerate(chapters):
