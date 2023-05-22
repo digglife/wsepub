@@ -2,5 +2,5 @@ beautifulsoup4==4.5.1
 bs4==0.0.1
 git+https://github.com/aerkalov/ebooklib@master#egg=ebooklib
 lxml==4.9.1
-requests==2.20.0
+requests==2.31.0
 six==1.10.0
